@@ -142,50 +142,50 @@ def build_script_method_query(packagename, classname):
             generated_codes+=f_hook_code
     return generated_codes
 
-def build_script_method_loadUrl(packagename, classname):
-    global overloadNum
-    generated_codes = ""
-    jscode = build_script_getOverloadNum(classname,"loadUrl")
-    begin_instrumentation(packagename,jscode)
-    if overloadNum == 0:
-        print(colored('[ERROR]:Can\'t find method \'' + "loadUrl" + '\'', "red"))
-    else:
-        hook_code = '''
-            WebView_Handler.loadUrl.overloads[i].implementation = function(a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15){
-                input_url = arguments[0];
-                var triggerfile;
-                console.log("input:" + input_url);
-                var op = recv('triggername',function onMessage(triggerMessage){
-                    triggerfile = triggerMessage[filename];
-                    console.log("recv!!!!")
-                });
-                op.wait();
-                console.log("newinput:" + triggerfile);
-                var result = this.loadUrl.overloads[i].apply(this, arguments);
-                return result;
-            }
-        '''
-        for index in range(0,overloadNum):
-            f_hook_code = hook_code.replace("overloads[i]", "overloads[" + str(index) +"]")
-            generated_codes+=f_hook_code
-    return generated_codes
+# def build_script_method_loadUrl(packagename, classname):
+#     global overloadNum
+#     generated_codes = ""
+#     jscode = build_script_getOverloadNum(classname,"loadUrl")
+#     begin_instrumentation(packagename,jscode)
+#     if overloadNum == 0:
+#         print(colored('[ERROR]:Can\'t find method \'' + "loadUrl" + '\'', "red"))
+#     else:
+#         hook_code = '''
+#             WebView_Handler.loadUrl.overloads[i].implementation = function(a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15){
+#                 input_url = arguments[0];
+#                 var triggerfile;
+#                 console.log("input:" + input_url);
+#                 var op = recv('triggername',function onMessage(triggerMessage){
+#                     triggerfile = triggerMessage[filename];
+#                     console.log("recv!!!!")
+#                 });
+#                 op.wait();
+#                 console.log("newinput:" + triggerfile);
+#                 var result = this.loadUrl.overloads[i].apply(this, arguments);
+#                 return result;
+#             }
+#         '''
+#         for index in range(0,overloadNum):
+#             f_hook_code = hook_code.replace("overloads[i]", "overloads[" + str(index) +"]")
+#             generated_codes+=f_hook_code
+#     return generated_codes
 
-def build_script_method_wbClient_onPagefinished():
-    hook_code = '''
-        //wbClient_Handler.onPageFinished.overload('android.webkit.WebView', 'java.lang.String').implementation = function(a1,a2){
-        wbClient_Handler.onPageFinished.overloads[0].implementation = function(a0,a1,a2,a3){
-            console.log(a1);
-            if(input_url == a1){
-                var payload = {
-                    "type": "Detected",
-                    "cont": "Find AppClone Vulnerability."
-                }
-                send(JSON.stringify(payload));
-            }
-            return this.onPageFinished.overloads[0].apply(this, arguments);
-        }
-    '''
-    return hook_code
+# def build_script_method_wbClient_onPagefinished():
+#     hook_code = '''
+#         //wbClient_Handler.onPageFinished.overload('android.webkit.WebView', 'java.lang.String').implementation = function(a1,a2){
+#         wbClient_Handler.onPageFinished.overloads[0].implementation = function(a0,a1,a2,a3){
+#             console.log(a1);
+#             if(input_url == a1){
+#                 var payload = {
+#                     "type": "Detected",
+#                     "cont": "Find AppClone Vulnerability."
+#                 }
+#                 send(JSON.stringify(payload));
+#             }
+#             return this.onPageFinished.overloads[0].apply(this, arguments);
+#         }
+#     '''
+#     return hook_code
 
 def test_case_generator(path):
     testCases = get_testCase(path);
@@ -200,50 +200,27 @@ def test_case_generator(path):
     return testCaseCodes
 
 
-def last_code_assembling(packagename,classname1,classname2,option):
+def last_code_assembling(packagename,classname,testCase_path):
     testCaseCodes = ""
     generated_codes = ""
     head_codes = ""
-    if option == 0:
-        testCaseCodes = test_case_generator("testCase")
-        
 
-        generated_codes = build_script_method_open(packagename, 'android.os.ParcelFileDescriptor') + build_script_method_openFile(packagename, classname) + build_script_method_query(packagename, classname)     
+    testCaseCodes = test_case_generator(testCase_path)
+    
 
-        head_codes = '''
-            Java.perform(function(){
-                var UriClass = Java.use('android.net.Uri');
-                var OpenHandler = Java.use('android.os.ParcelFileDescriptor');
-                var OpenFile_QueryHandler = Java.use('%(className)s');
-                var filename = "";
-                %(gc)s
-            })
-        '''%{"gc":generated_codes,"className":classname}
-        
-    elif option == 1:
-        # classname1:webview
-        # classname2:webviewclient
-        generated_codes = build_script_method_loadUrl(packagename,classname1) + build_script_method_wbClient_onPagefinished()
-        head_codes = '''
-            Java.perform(function(){
-                var WebView_Handler = Java.use('%(className1)s');
-                var wbClient_Handler = Java.use('%(className2)s');
-                var input_url
-                %(gc)s
-            })
-        '''%{"gc":generated_codes,"className1":classname1,"className2":classname2}
+    generated_codes = build_script_method_open(packagename, 'android.os.ParcelFileDescriptor') + build_script_method_openFile(packagename, classname) + build_script_method_query(packagename, classname)     
 
-    elif option == 2:
-        generated_codes = build_script_method_loadUrl(packagename,classname)
-        head_codes = '''
-            Java.perform(function(){
-                var WebView_Handler = Java.use('android.webkit.WebView');
-                %(gc)s
-            })
-        '''%{"gc":generated_codes}
+    head_codes = '''
+        Java.perform(function(){
+            var UriClass = Java.use('android.net.Uri');
+            var OpenHandler = Java.use('android.os.ParcelFileDescriptor');
+            var OpenFile_QueryHandler = Java.use('%(className)s');
+            var filename = "";
+            %(gc)s
+        })
+    '''%{"gc":generated_codes,"className":classname}
 
     final_codes = testCaseCodes + head_codes
-
     return final_codes
 
 
@@ -269,22 +246,6 @@ def begin_instrumentation(appName, script_source):   # apply jscode
     except Exception as e:
         print (colored('[ERROR]: ' + str(e), "red"))
         sys.exit()
-
-def begin_instrumentation_Appclone(appName, script_source):   # apply jscode
-    device = frida.get_usb_device()
-    try:
-        session = device.attach(appName)
-    except Exception as e:
-        print (colored('[ERROR]: ' + str(e), "red"))
-        sys.exit()
-    try:
-        script = session.create_script(script_source)
-        script.on('message', on_message)
-        script.load()
-    except Exception as e:
-        print (colored('[ERROR]: ' + str(e), "red"))
-        sys.exit()
-    return script
 
 def on_message(message, data):
     global overloadNum
@@ -333,24 +294,14 @@ def get_classMethods(packagename,classname):
     print(jscode)
     begin_instrumentation(packagename,jscode)
 
-# packagename = "com.facebook.lite"
-# classname = "com.facebook.lite.photo.MediaContentProvider"
-# packagename = "com.sohu.sohuvideo"
-# classname = "com.sohu.sohuvideo.provider.PlayHistoryProvider"
-packagename = "com.sec.tsis.clonedemo"
-packagename0 = "com.sec.tsis.facebookattack"
-packagename = "com.eg.android.AlipayGphone"
-#packagename = "com.example.eacials.webviewtest"
-classname1 = "com.alipay.mobile.nebulacore.web.H5WebView"
-classname2 = "com.alipay.mobile.nebulacore.web.H5WebViewClient"
-# classname1 = "android.webkit.WebView"
-# classname2 = "android.webkit.WebViewClient"
-option = 1
+packagename = "com.facebook.lite"       # package of apk to be tested
+packagename0 = "com.sec.tsis.facebookattack"  # package of trigger
+classname = "com.facebook.lite.photo.MediaContentProvider"     # class of contentprovider
+testcasePath = "cp_fb_testCase"
+
 overloadNum = 0
 
-#get_loaded_classes(packagename)
-#get_classMethods(packagename,classname)
-jscode = last_code_assembling(packagename,classname1,classname2,option)
+jscode = last_code_assembling(packagename,classname)
 print(jscode)
 jscode_trigger = build_script_trigger()
 begin_instrumentation(packagename0,jscode_trigger)
